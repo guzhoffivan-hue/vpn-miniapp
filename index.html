@@ -183,7 +183,7 @@
         return;
     }
 
-    // 1. Надежно копируем ключ в буфер обмена
+    // 1. Копируем ключ в буфер обмена
     const tempInput = document.createElement("textarea");
     tempInput.value = subscriptionUrl;
     tempInput.style.position = "fixed";
@@ -204,34 +204,43 @@
         Telegram.WebApp.HapticFeedback.notificationOccurred('success');
     }
 
-    showToast("Скопировано! Открываем Happ...");
+    showToast("Ключ скопирован! Запуск Happ...");
 
-    // 2. Открытие без ошибки ERR_UNKNOWN_URL_SCHEME
-    // В Telegram WebApp нельзя делать window.location = 'happ://'
-    const tg = window.Telegram?.WebApp;
+    // 2. Ссылка для импорта в Happ
+    // Happ умеет принимать ключ через happ://add/
+    const happDirectUrl = "happ://add/" + encodeURIComponent(subscriptionUrl);
+    const happSimpleUrl = "happ://";
 
-    // Формируем deeplink
-    const happUrl = "happ://";
+    // 3. Безопасное открытие для iOS и Android
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // Пытаемся открыть через системный API Telegram
-    if (tg && typeof tg.openLink === "function") {
-        try {
-            tg.openLink(happUrl, { try_instant_view: false });
-        } catch (err) {
-            // Если Telegram отклонил сторонний протокол
-            console.log("openLink error", err);
-        }
+    if (isIOS) {
+        // На iOS лучше всего срабатывает виртуальный клик по ссылке с таргетом _top
+        const a = document.createElement('a');
+        a.href = happDirectUrl;
+        a.target = '_top';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     } else {
-        // Запасной iframe метод (не крашит страницу на Android)
+        // На Android используем скрытый iframe, чтобы избежать ошибки net::ERR_UNKNOWN_URL_SCHEME
         const iframe = document.createElement("iframe");
         iframe.style.display = "none";
-        iframe.src = happUrl;
+        iframe.src = happDirectUrl;
         document.body.appendChild(iframe);
+        
+        setTimeout(() => {
+            // Если схема happ://add/ не подхватилась, пробуем просто happ://
+            iframe.src = happSimpleUrl;
+        }, 300);
+
         setTimeout(() => {
             document.body.removeChild(iframe);
-        }, 1000);
+        }, 1500);
     }
 }
+
 
 
         // Определение платформы
