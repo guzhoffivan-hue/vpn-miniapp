@@ -623,6 +623,16 @@
       state.currentOS = detectOS();
       updateUI();
     });
+    // Автоматически читаем параметр ?sub=... из адресной строки бота
+const urlParams = new URLSearchParams(window.location.search);
+const subFromUrl = urlParams.get('sub');
+
+if (subFromUrl) {
+    subscriptionUrl = decodeURIComponent(subFromUrl);
+    // Обновляем значение в локальном хранилище и интерфейсе
+    localStorage.setItem('vpn_sub_url', subscriptionUrl);
+}
+
   </script>
 </body>
 </html>
