@@ -178,31 +178,61 @@
 
         // Безопасное подключение без ошибки ERR_UNKNOWN_URL_SCHEME
         function connectVpn() {
-            if (!subscriptionUrl) {
-                showToast("Ошибка: нет ссылки подписки!");
-                return;
-            }
+    if (!subscriptionUrl) {
+        showToast("Ошибка: нет ссылки конфигурации!");
+        return;
+    }
 
-            // 1. Всегда надежно копируем ключ в буфер
-            navigator.clipboard.writeText(subscriptionUrl).catch(() => {
-                const el = document.createElement('textarea');
-                el.value = subscriptionUrl;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-            });
-
-            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            showToast("Ключ скопирован! Открываем клиент...");
-
-            // 2. Открываем приложение Happ или V2Box
-            setTimeout(() => {
-                // Если запущен Telegram WebApp, используем openLink или window.location
-                // На Android лучше всего открывать общую схему приложения
-                window.location.href = "happ://";
-            }, 300);
+    // 1. Надежно копируем ключ в буфер обмена
+    const tempInput = document.createElement("textarea");
+    tempInput.value = subscriptionUrl;
+    tempInput.style.position = "fixed";
+    tempInput.style.opacity = "0";
+    document.body.appendChild(tempInput);
+    tempInput.focus();
+    tempInput.select();
+    try {
+        document.execCommand("copy");
+    } catch (e) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(subscriptionUrl);
         }
+    }
+    document.body.removeChild(tempInput);
+
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    }
+
+    showToast("Скопировано! Открываем Happ...");
+
+    // 2. Открытие без ошибки ERR_UNKNOWN_URL_SCHEME
+    // В Telegram WebApp нельзя делать window.location = 'happ://'
+    const tg = window.Telegram?.WebApp;
+
+    // Формируем deeplink
+    const happUrl = "happ://";
+
+    // Пытаемся открыть через системный API Telegram
+    if (tg && typeof tg.openLink === "function") {
+        try {
+            tg.openLink(happUrl, { try_instant_view: false });
+        } catch (err) {
+            // Если Telegram отклонил сторонний протокол
+            console.log("openLink error", err);
+        }
+    } else {
+        // Запасной iframe метод (не крашит страницу на Android)
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = happUrl;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }
+}
+
 
         // Определение платформы
         let currentPlatform = 'ios';
